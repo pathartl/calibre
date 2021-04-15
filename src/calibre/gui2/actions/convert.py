@@ -16,7 +16,7 @@ from calibre.gui2.tools import convert_single_ebook, convert_bulk_ebook
 from calibre.utils.config import prefs, tweaks
 from calibre.gui2.actions import InterfaceAction
 from calibre.customize.ui import plugin_for_input_format
-
+from calibre.utils.smtp import config as email_config
 
 class ConvertAction(InterfaceAction):
 
@@ -88,6 +88,18 @@ class ConvertAction(InterfaceAction):
         previous = self.gui.library_view.currentIndex()
         db = self.gui.current_db
         needed = set()
+        
+        # Add support for automatic emailing
+        delete_from_library = False
+        subject = "Book!"
+        
+        # Hardcoding default account
+        opts = email_config().parse()
+        accounts = [(account, [x.strip().lower() for x in x[0].split(',')]) for account, x in opts.accounts.items() if x[1] and x[2]]
+        x = accounts[0]
+        account, fmts = x
+        to = account        
+        
         of = prefs['output_format'].lower()
         for book_id in book_ids:
             fmts = db.formats(book_id, index_is_id=True)
@@ -101,7 +113,8 @@ class ConvertAction(InterfaceAction):
             if not jobs:
                 return
             self.queue_convert_jobs(jobs, changed, bad, list(needed), previous,
-                    self.book_converted, rows_are_ids=True)
+                    self.book_auto_converted_mail,
+                    extra_job_args=[delete_from_library, to, fmts, subject])
 
     def auto_convert_mail(self, to, fmts, delete_from_library, book_ids, format, subject):
         previous = self.gui.library_view.currentIndex()
